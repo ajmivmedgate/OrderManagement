@@ -21,7 +21,7 @@ namespace Infrastructure.Services
 
             return context.Customers
                     .Where(c => !c.IsDeleted)
-                    .Include(c => c.Orders)
+                    .Include(c => c.Orders.Where(o => !o.IsDeleted))
                     .Include(c => c.Address);
         }
 
@@ -38,7 +38,8 @@ namespace Infrastructure.Services
                     LastName = customerModel.LastName,
                     ContactNumber = customerModel.ContactNumber,
                     Email = customerModel.Email,
-                    Address = new Address {
+                    Address = new Address
+                    {
                         AddressLine1 = customerModel.AddressLine1,
                         AddressLine2 = customerModel.AddressLine2,
                         City = customerModel.City,
@@ -49,7 +50,8 @@ namespace Infrastructure.Services
 
                 await context.Customers.AddAsync(customer);
             }
-            else {
+            else
+            {
                 customer = await context.Customers
                     .Where(c => c.Id == customerModel.Id)
                     .Include(c => c.Address)
@@ -74,6 +76,34 @@ namespace Infrastructure.Services
             await context.SaveChangesAsync();
 
             return customer;
+        }
+
+        public async Task<bool> DeleteCustomerAsync(int customerId)
+        {
+            var context = _contextFactory.CreateDbContext();
+
+            var customer = await context.Customers
+                            .Where(c => c.Id == customerId)
+                            .FirstOrDefaultAsync();
+
+            if (customer == null)
+            {
+                throw new Exception($"Customer with id {customerId} was not found");
+            }
+
+            customer.IsDeleted = true;
+
+            var orders = await context.Orders
+                            .Where(o => o.CustomerId == customerId)
+                            .ToListAsync();
+
+            foreach(var order in orders) {
+                order.IsDeleted = true;                
+            }
+
+            context.Customers.Update(customer);
+            context.Orders.UpdateRange(orders);
+            return await context.SaveChangesAsync() > 0;
         }
     }
 }

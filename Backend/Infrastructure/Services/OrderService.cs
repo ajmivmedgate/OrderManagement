@@ -41,7 +41,8 @@ namespace Infrastructure.Services
 
             if (orderModel.Id == null)
             {
-                order = new Order {
+                order = new Order
+                {
                     CustomerId = orderModel.CustomerId,
                     OrderDate = orderModel.OrderDate,
                     Description = orderModel.Description,
@@ -54,14 +55,15 @@ namespace Infrastructure.Services
 
                 await context.Orders.AddAsync(order);
             }
-            else {
+            else
+            {
                 order = await context.Orders
                             .Where(o => o.Id == orderModel.Id)
                             .FirstOrDefaultAsync();
 
                 if (order == null)
                     throw new Exception($"Order with id {orderModel.Id} was not found");
-            
+
                 order.OrderDate = orderModel.OrderDate;
                 order.Description = orderModel.Description;
                 order.TotalAmount = orderModel.TotalAmount;
@@ -75,6 +77,23 @@ namespace Infrastructure.Services
             await context.SaveChangesAsync();
 
             return order;
+        }
+
+        public async Task<bool> DeleteOrderAsync(int orderId)
+        {
+            var context = _contextFactory.CreateDbContext();
+
+            var order = await context.Orders
+                        .Where(o => o.Id == orderId)
+                        .FirstOrDefaultAsync();
+
+            if (order == null)
+                throw new Exception($"Order with id {orderId} was not found");
+
+            order.IsDeleted = true;
+
+            context.Orders.Update(order);
+            return await context.SaveChangesAsync() > 0;
         }
     }
 }
